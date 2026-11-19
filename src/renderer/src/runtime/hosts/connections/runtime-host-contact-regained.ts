@@ -2,7 +2,7 @@ import { useAppStore } from '@/store/index'
 import type { AppState } from '@/store/types'
 import {
   readRuntimeStatuses,
-  subscribeRuntimeStatuses,
+  subscribeAppStoreWithStatuses,
   type RuntimeStatuses
 } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import { runtimeEnvironmentContinuityStamp } from '../../rpc/environment-revisions/runtime-environment-revision'
@@ -35,28 +35,23 @@ export function subscribeRuntimeHostContactRegained(
 ): () => void {
   let lastMarks = contactMarks(readRuntimeStatuses(), environmentId)
   let lastWslReady = wslHostReady(useAppStore.getState(), environmentId)
-  const check = (state: AppState): void => {
+  return subscribeAppStoreWithStatuses((state, previousState, statuses, previousStatuses) => {
+    const wslChanged = state.wslHostStatuses !== previousState.wslHostStatuses
+    if (
+      !wslChanged &&
+      statuses === previousStatuses &&
+      state.runtimeEnvironments === previousState.runtimeEnvironments
+    ) {
+      return
+    }
     const wslReady = wslHostReady(state, environmentId)
     const becameReady = wslReady && !lastWslReady
     lastWslReady = wslReady
-    const marks = contactMarks(readRuntimeStatuses(), environmentId)
+    const marks = contactMarks(statuses, environmentId)
     if (marks === lastMarks && !becameReady) {
       return
     }
     lastMarks = marks
     listener()
-  }
-  const unsubscribeState = useAppStore.subscribe((state, previousState) => {
-    if (
-      state.wslHostStatuses !== previousState.wslHostStatuses ||
-      state.runtimeEnvironments !== previousState.runtimeEnvironments
-    ) {
-      check(state)
-    }
   })
-  const unsubscribeStatuses = subscribeRuntimeStatuses(() => check(useAppStore.getState()))
-  return () => {
-    unsubscribeState()
-    unsubscribeStatuses()
-  }
 }

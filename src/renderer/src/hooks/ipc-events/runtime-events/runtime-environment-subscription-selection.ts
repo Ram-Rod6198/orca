@@ -23,6 +23,34 @@ export function pickRuntimeEnvironmentSyncState(
   }
 }
 
+/** One call per publication; only a write touching these inputs builds the picked views. */
+export function runtimeEnvironmentSyncWrites(
+  handle: (
+    state: RuntimeEnvironmentStoreSyncState,
+    previous: RuntimeEnvironmentStoreSyncState
+  ) => void
+) {
+  return (
+    state: AppState,
+    previous: AppState,
+    statuses: RuntimeStatuses,
+    previousStatuses: RuntimeStatuses
+  ): void => {
+    if (
+      statuses === previousStatuses &&
+      state.runtimeEnvironments === previous.runtimeEnvironments &&
+      state.sshStateByEnvironment === previous.sshStateByEnvironment &&
+      state.settings === previous.settings
+    ) {
+      return
+    }
+    handle(
+      pickRuntimeEnvironmentSyncState(state, statuses),
+      pickRuntimeEnvironmentSyncState(previous, previousStatuses)
+    )
+  }
+}
+
 function getActiveRuntimeEnvironmentId(state: RuntimeEnvironmentStoreSyncState): string | null {
   return state.settings?.activeRuntimeEnvironmentId?.trim() || null
 }

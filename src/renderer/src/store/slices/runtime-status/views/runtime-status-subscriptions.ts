@@ -179,6 +179,11 @@ export function createRuntimeStatusSubscriptions(store: RuntimeStatusStore) {
     }
   }
 
+  /** One wake per store publication, host status included; never twice for one publication. */
+  function subscribeStore(listener: Listener): () => void {
+    return store.subscribe(listener)
+  }
+
   /** Wakes when any host's status changes, and on nothing else. */
   function subscribeStatuses(listener: Listener): () => void {
     ensureSubscription()
@@ -197,7 +202,8 @@ export function createRuntimeStatusSubscriptions(store: RuntimeStatusStore) {
     getParkingSnapshot,
     subscribeParking,
     subscribeEntry,
-    subscribeStatuses
+    subscribeStatuses,
+    subscribeStore
   }
 }
 
@@ -221,4 +227,24 @@ export function runtimeStatusSubscriptionsFor(
     subscriptionsByStore.set(key, subscriptions)
   }
   return subscriptions
+}
+
+/** One callback per store publication with the host statuses on each side of it. */
+export function subscribeStoreWithStatuses<S extends RuntimeStatusState>(
+  store: { subscribe: (listener: (state: S, previous: S) => void) => () => void },
+  listener: (
+    state: S,
+    previous: S,
+    statuses: RuntimeStatuses,
+    previousStatuses: RuntimeStatuses
+  ) => void
+): () => void {
+  return store.subscribe((state, previous) =>
+    listener(
+      state,
+      previous,
+      state.runtimeStatusByEnvironmentId,
+      previous.runtimeStatusByEnvironmentId
+    )
+  )
 }

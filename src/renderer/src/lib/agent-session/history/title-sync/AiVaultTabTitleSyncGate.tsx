@@ -4,7 +4,7 @@ import { scheduleAfterInputQuiet } from '@/lib/window-activity/input-quiet-sched
 import { useAppStore } from '@/store/index'
 import {
   readRuntimeStatuses,
-  subscribeRuntimeStatusChanges
+  subscribeAppStoreWithStatuses
 } from '@/store/slices/runtime-status/views/runtime-status-owner'
 
 const TITLE_SYNC_DELAY_MS = 1_000
@@ -16,9 +16,8 @@ export function AiVaultTabTitleSyncGate(): null {
     () =>
       startAiVaultTabTitleSync({
         getState: useAppStore.getState,
-        subscribe: useAppStore.subscribe,
+        subscribe: subscribeAppStoreWithStatuses,
         readStatuses: readRuntimeStatuses,
-        subscribeStatusChanges: subscribeRuntimeStatusChanges,
         resolveSessionTitles: (args) => window.api.aiVault.resolveSessionTitles(args),
         scheduleReconcile: (callback) =>
           scheduleAfterInputQuiet(callback, {

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useSyncExternalStore } from 'react'
+import { useRef, useSyncExternalStore } from 'react'
 import { useAppStore } from '../../../index'
 import type { AppState } from '../../../types'
 import {
@@ -6,11 +6,8 @@ import {
   useAppStateViewActive,
   type AppStateView
 } from '../../../retained-views/app-state-view'
-import {
-  appRuntimeStatusSubscriptions,
-  readRuntimeStatusesForView,
-  type RuntimeStatuses
-} from './runtime-status-owner'
+import { readRuntimeStatusesForView, type RuntimeStatuses } from './runtime-status-owner'
+import { runtimeStatusSubscriptionsFor } from './runtime-status-subscriptions'
 
 type HostStatusesSelector<T> = (state: AppState, statuses: RuntimeStatuses) => T
 type Selection<T> = {
@@ -29,37 +26,32 @@ function useViewWithHostStatuses<T>(
   selector: HostStatusesSelector<T>,
   equality: (a: T, b: T) => boolean
 ): T {
-  const subscribe = useCallback(
-    (listener: () => void) => {
-      const unsubscribeState = view.subscribe(listener)
-      const unsubscribeStatuses = appRuntimeStatusSubscriptions().subscribeStatuses(listener)
-      return () => {
-        unsubscribeState()
-        unsubscribeStatuses()
-      }
-    },
-    [view]
-  )
-  // Why cached: both sources wake on one host write, so the second read must not rerun the selector.
+  // One joined wake per publication from the owner, so a host write never notifies a reader twice.
+  const subscribe = live ? runtimeStatusSubscriptionsFor(view).subscribeStore : subscribeNothing
+  // Why one record updated in place: a store write must not allocate per mounted reader.
   const selection = useRef<Selection<T> | null>(null)
   const getSnapshot = (): T => {
     const state = view.getState()
     const statuses = readRuntimeStatusesForView(view)
-    const previous = selection.current
-    if (
-      previous &&
-      previous.state === state &&
-      previous.statuses === statuses &&
-      previous.selector === selector
-    ) {
-      return previous.value
+    const cached = selection.current
+    if (!cached) {
+      const value = selector(state, statuses)
+      selection.current = { state, statuses, selector, value }
+      return value
+    }
+    if (cached.state === state && cached.statuses === statuses && cached.selector === selector) {
+      return cached.value
     }
     const next = selector(state, statuses)
-    const value = previous && equality(previous.value, next) ? previous.value : next
-    selection.current = { state, statuses, selector, value }
-    return value
+    cached.state = state
+    cached.statuses = statuses
+    cached.selector = selector
+    if (!equality(cached.value, next)) {
+      cached.value = next
+    }
+    return cached.value
   }
-  return useSyncExternalStore(live ? subscribe : subscribeNothing, getSnapshot, getSnapshot)
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
 
 /** useAppStore for a selector that also reads host statuses, which come from the host status owner. */

@@ -1,6 +1,7 @@
 // Which paired servers list bots here, kept in step with the server catalog and each server's connection.
 import {
   runtimeStatusSubscriptionsFor,
+  subscribeStoreWithStatuses,
   type RuntimeStatuses
 } from '@/store/slices/runtime-status/views/runtime-status-subscriptions'
 import { BOTS_MOBILE_RUNTIME_CAPABILITY } from '../../../shared/bot-runtime-capabilities'
@@ -132,42 +133,29 @@ export function installBotHostListing(
   },
   webClient: boolean
 ): () => void {
-  const hostStatuses = runtimeStatusSubscriptionsFor(store)
-  let syncedStatuses = hostStatuses.readStatuses()
-  const sync = (state: BotHostListingStoreState): void => {
-    syncedStatuses = hostStatuses.readStatuses()
+  const sync = (state: BotHostListingStoreState, statuses: RuntimeStatuses): void =>
     syncBotHostListing(
-      { ...pickListingState(state), runtimeStatusByEnvironmentId: syncedStatuses },
+      { ...pickListingState(state), runtimeStatusByEnvironmentId: statuses },
       webClient
     )
-  }
-  sync(store.getState())
+  sync(store.getState(), runtimeStatusSubscriptionsFor(store).readStatuses())
   // Homes are read once per flush; a catalog change only marks the connected servers dirty.
   setKeptBotHomesReader((hostId, list) =>
     keptBotHomes(hostId, list, selectFolderWorkspaces(store.getState()) ?? [])
   )
-  const stopStore = store.subscribe((state, previous) => {
+  return subscribeStoreWithStatuses(store, (state, previous, statuses, previousStatuses) => {
     if (selectFolderWorkspaces(state) !== selectFolderWorkspaces(previous)) {
       readLiveBotHostIds().forEach(markKeptBotHostDirty)
     }
     if (
       state.runtimeEnvironments === previous.runtimeEnvironments &&
-      hostStatuses.readStatuses() === syncedStatuses &&
+      statuses === previousStatuses &&
       state.runtimeEnvironmentCatalogHydrated === previous.runtimeEnvironmentCatalogHydrated
     ) {
       return
     }
-    sync(state)
+    sync(state, statuses)
   })
-  const stopStatuses = hostStatuses.subscribeStatuses(() => {
-    if (hostStatuses.readStatuses() !== syncedStatuses) {
-      sync(store.getState())
-    }
-  })
-  return () => {
-    stopStore()
-    stopStatuses()
-  }
 }
 
 function pickListingState(state: BotHostListingStoreState): BotHostListingStoreState {

@@ -17,10 +17,5 @@ export function installTerminalParkingInputs(store: ParkingInputStore): () => vo
       acceptTerminalParkingInputs(store.getState(), hostStatuses.readStatuses())
     )
   }
-  const stopState = store.subscribe(accept)
-  const stopStatuses = hostStatuses.subscribeStatuses(accept)
-  return () => {
-    stopState()
-    stopStatuses()
-  }
+  return hostStatuses.subscribeStore(accept)
 }

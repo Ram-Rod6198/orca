@@ -105,12 +105,7 @@ export function createPaneWindowsPtyModel(
           stopWatchingStore()
         }
       }
-      const unsubscribeState = store.subscribe(onChange)
-      const unsubscribeStatuses = runtimeStatusSubscriptionsFor(store).subscribeStatuses(onChange)
-      unsubscribeStore = () => {
-        unsubscribeState()
-        unsubscribeStatuses()
-      }
+      unsubscribeStore = runtimeStatusSubscriptionsFor(store).subscribeStore(onChange)
     }
   }
   return {

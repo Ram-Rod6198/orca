@@ -14,7 +14,7 @@ import { useAppStore } from '@/store/index'
 import type { AppState } from '@/store/types'
 import {
   readRuntimeStatuses,
-  subscribeRuntimeStatuses
+  subscribeAppStoreWithStatuses
 } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import {
   forgetHostModelCatalogSnapshots,
@@ -148,8 +148,11 @@ export function installHostModelCatalogSnapshotsSync(): () => void {
     }
   }
   watchPairedHosts(useAppStore.getState())
-  const stopStore = useAppStore.subscribe((state, previous) => {
-    if (state.removedRuntimeEnvironmentIds !== previous.removedRuntimeEnvironmentIds) {
+  const stopStore = subscribeAppStoreWithStatuses((state, previous, statuses, previousStatuses) => {
+    if (
+      statuses !== previousStatuses ||
+      state.removedRuntimeEnvironmentIds !== previous.removedRuntimeEnvironmentIds
+    ) {
       watchPairedHosts(state)
     }
     if (accountSettingsChanged(state, previous)) {
@@ -157,12 +160,10 @@ export function installHostModelCatalogSnapshotsSync(): () => void {
       void preloadLocal(true)
     }
   })
-  const stopStatuses = subscribeRuntimeStatuses(() => watchPairedHosts(useAppStore.getState()))
   return () => {
     stopLocal()
     stopAgents()
     stopStore()
-    stopStatuses()
     contactStops.forEach((stop) => stop())
     preloadedFrom.clear()
   }

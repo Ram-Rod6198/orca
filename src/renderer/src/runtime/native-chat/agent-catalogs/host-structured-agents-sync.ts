@@ -8,7 +8,7 @@ import { useAppStore } from '@/store/index'
 import type { AppState } from '@/store/types'
 import {
   readRuntimeStatuses,
-  subscribeRuntimeStatuses,
+  subscribeAppStoreWithStatuses,
   type RuntimeStatuses
 } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import {
@@ -67,21 +67,21 @@ export function installHostStructuredAgentsSync(): () => void {
       void syncLocalHost(useAppStore.getState().settings)
     }
   })
-  const stopStore = useAppStore.subscribe((state, previousState) => {
-    if (launchesMayOpenChats(state) && !launchesMayOpenChats(previousState)) {
-      void syncLocalHost(state.settings)
-      syncPairedHosts(readRuntimeStatuses())
+  const stopStore = subscribeAppStoreWithStatuses(
+    (state, previousState, statuses, previousStatuses) => {
+      const on = launchesMayOpenChats(state)
+      const turnedOn = on && !launchesMayOpenChats(previousState)
+      if (turnedOn) {
+        void syncLocalHost(state.settings)
+      }
+      if (on && (turnedOn || statuses !== previousStatuses)) {
+        syncPairedHosts(statuses)
+      }
     }
-  })
-  const stopStatuses = subscribeRuntimeStatuses(() => {
-    if (launchesMayOpenChats(useAppStore.getState())) {
-      syncPairedHosts(readRuntimeStatuses())
-    }
-  })
+  )
   return () => {
     stopLocal()
     stopStore()
-    stopStatuses()
   }
 }
 

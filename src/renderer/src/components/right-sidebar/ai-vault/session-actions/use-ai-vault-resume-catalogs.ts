@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import { useAppStore } from '@/store/index'
 import {
   readRuntimeStatuses,
-  subscribeRuntimeStatuses
+  subscribeRuntimeStatuses,
+  appRuntimeStatusSubscriptions
 } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import {
   ALL_EXECUTION_HOSTS_SCOPE,
@@ -77,9 +78,12 @@ export function useAiVaultResumeCatalogs(scope: ExecutionHostScope): void {
         loadRuntime(host.environmentId)
       }
     }
-    const stopEnvironments = all ? useAppStore.subscribe(loadChangedRuntimes) : undefined
-    const stopStatuses =
-      all || host?.kind === 'runtime' ? subscribeRuntimeStatuses(loadChangedRuntimes) : undefined
+    // One joined wake per publication when catalog and statuses both matter.
+    const stopChanges = all
+      ? appRuntimeStatusSubscriptions().subscribeStore(loadChangedRuntimes)
+      : host?.kind === 'runtime'
+        ? subscribeRuntimeStatuses(loadChangedRuntimes)
+        : undefined
     if (all) {
       for (const environment of seenEnvironments) {
         loadRuntime(environment.id)
@@ -90,8 +94,7 @@ export function useAiVaultResumeCatalogs(scope: ExecutionHostScope): void {
     return () => {
       disposed = true
       stopLocal?.()
-      stopEnvironments?.()
-      stopStatuses?.()
+      stopChanges?.()
     }
   }, [scope])
 }

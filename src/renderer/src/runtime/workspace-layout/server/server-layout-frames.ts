@@ -13,7 +13,11 @@ import {
 } from '../../hosts/connections/runtime-host-connection-state'
 import { createServerLayoutFrameTranslator } from './server-layout-frame-ids'
 import { routingInputs, sameValues } from './server-layout-frame-routing-inputs'
-import { runtimeStatusSubscriptionsFor } from '@/store/slices/runtime-status/views/runtime-status-subscriptions'
+import {
+  runtimeStatusSubscriptionsFor,
+  subscribeStoreWithStatuses,
+  type RuntimeStatuses
+} from '@/store/slices/runtime-status/views/runtime-status-subscriptions'
 import {
   DESKTOP_CREATED_SERVER_TAB_HOLDS,
   forgetPublishedServerTabs,
@@ -39,7 +43,7 @@ import { resyncMirroredServerWorkspace } from '../../web-session-tabs-sync/frame
 type FramesStore = {
   getState: () => AppState
   setState: (patch: Partial<AppState>) => void
-  subscribe: (listener: (state: AppState) => void) => () => void
+  subscribe: (listener: (state: AppState, previous: AppState) => void) => () => void
 }
 
 type ServerFrames = {
@@ -205,22 +209,17 @@ function openServerFrames(
   }
   // Late pairing can establish ownership after snapshot; gate then redraw when routing arrives.
   let routing: unknown[] = []
-  const hostStatuses = runtimeStatusSubscriptionsFor(store)
-  const rerouteOn = (state: AppState): void => {
-    const next = routingInputs(state, hostStatuses.readStatuses())
+  const stopRouting = subscribeStoreWithStatuses(store, (state, _previous, statuses) => {
+    if (live) {
+      viewReport.update(state.activeGroupIdByWorktree, gated, applyingFrames)
+    }
+    const next = routingInputs(state, statuses)
     if (sameValues(next, routing)) {
       return
     }
     routing = next
     admitNew()
-  }
-  const stopRouting = store.subscribe((state) => {
-    if (live) {
-      viewReport.update(state.activeGroupIdByWorktree, gated, applyingFrames)
-    }
-    rerouteOn(state)
   })
-  const stopRoutingStatuses = hostStatuses.subscribeStatuses(() => rerouteOn(store.getState()))
   const stopHandles = onMirroredTerminalHandlesChanged((environment, worktreeId) => {
     const frame = environment === environmentId ? translator.rebind(worktreeId) : null
     if (frame) {
@@ -245,7 +244,6 @@ function openServerFrames(
       handover.close()
       stopRoutes()
       stopRouting()
-      stopRoutingStatuses()
       stopHandles()
       stopControlWatch()
       sync.close()
@@ -267,9 +265,7 @@ export function installServerLayoutFrames(store: FramesStore): () => void {
   pruneDesktopCreatedServerTabs(store.getState())
   const open = new Map<string, { identity: string; frames: ServerFrames }>()
   let inputs: unknown[] = []
-  const hostStatuses = runtimeStatusSubscriptionsFor(store)
-  const reconcile = (state: AppState): void => {
-    const statuses = hostStatuses.readStatuses()
+  const reconcile = (state: AppState, statuses: RuntimeStatuses): void => {
     const next = [state.runtimeEnvironments, statuses]
     if (sameValues(next, inputs)) {
       return
@@ -313,12 +309,12 @@ export function installServerLayoutFrames(store: FramesStore): () => void {
       }
     }
   }
-  reconcile(store.getState())
-  const stop = store.subscribe(reconcile)
-  const stopStatuses = hostStatuses.subscribeStatuses(() => reconcile(store.getState()))
+  reconcile(store.getState(), runtimeStatusSubscriptionsFor(store).readStatuses())
+  const stop = subscribeStoreWithStatuses(store, (state, _previous, statuses) =>
+    reconcile(state, statuses)
+  )
   return () => {
     stop()
-    stopStatuses()
     for (const { frames } of open.values()) {
       frames.close(true)
     }

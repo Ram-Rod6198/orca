@@ -30,7 +30,7 @@ import type { RuntimeClientEvent } from '../../../../../shared/remote-runtime/se
 import { navigationTargetsClients } from '../../../../../shared/remote-runtime/session-graph/runtime-navigation'
 import {
   readRuntimeStatuses,
-  subscribeRuntimeStatuses
+  subscribeAppStoreWithStatuses
 } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import { useAppStore } from '../../../store/index'
 import { invalidateRemoteWorktreeLineage } from '../../../store/slices/worktrees/metadata/worktree-lineage-readiness'
@@ -46,7 +46,8 @@ import {
   getReachableRuntimeEnvironmentIds,
   getRuntimeClientEventEnvironmentIds,
   invalidateRuntimeClientEventReplay,
-  pickRuntimeEnvironmentSyncState
+  pickRuntimeEnvironmentSyncState,
+  runtimeEnvironmentSyncWrites
 } from './runtime-environment-subscription-selection'
 import type { WorktreeEventRuntime } from '../workspace-catalog/worktree-event-runtime'
 import { noteOrchestrationSessionWorkersChanged } from '@/lib/orchestration-session-workers'
@@ -296,19 +297,9 @@ export function registerRuntimeClientIpcBridge(
     },
     sync: runtimeClientEventsSync.sync
   })
-  // Host statuses come from their owner, so both sources feed one diff against the last seen inputs.
-  let previousSyncState = initialRuntimeEnvironmentState
-  const handleRuntimeEnvironmentInputs = (): void => {
-    const previous = previousSyncState
-    previousSyncState = readSyncState()
-    handleRuntimeEnvironmentStoreWrite(previousSyncState, previous)
-  }
-  const unsubscribeAppStore = useAppStore.subscribe(handleRuntimeEnvironmentInputs)
-  const unsubscribeStatuses = subscribeRuntimeStatuses(handleRuntimeEnvironmentInputs)
-  const unsubscribeRuntimeEnvironmentStore = (): void => {
-    unsubscribeAppStore()
-    unsubscribeStatuses()
-  }
+  const unsubscribeRuntimeEnvironmentStore = subscribeAppStoreWithStatuses(
+    runtimeEnvironmentSyncWrites(handleRuntimeEnvironmentStoreWrite)
+  )
   // Subscribe before streams start; replay invalidation can synchronously publish SSH buckets needing exactly one replacement subscription.
   runtimeClientEventsSync.sync()
   unsubs.push(runtimeClientEventsSync.stop)

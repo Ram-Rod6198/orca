@@ -1,7 +1,9 @@
 import { useAppStore } from '../../../index'
+import type { AppState } from '../../../types'
 import type { AppStateView } from '../../../retained-views/app-state-view'
 import {
   runtimeStatusSubscriptionsFor,
+  subscribeStoreWithStatuses,
   type RuntimeStatuses,
   type RuntimeStatusSubscriptions
 } from './runtime-status-subscriptions'
@@ -38,6 +40,18 @@ export function subscribeRuntimeStatusChanges(
     previous = statuses
     listener(statuses, replaced)
   })
+}
+
+/** One callback per app store publication with the host statuses on each side of it. */
+export function subscribeAppStoreWithStatuses(
+  listener: (
+    state: AppState,
+    previous: AppState,
+    statuses: RuntimeStatuses,
+    previousStatuses: RuntimeStatuses
+  ) => void
+): () => void {
+  return subscribeStoreWithStatuses(useAppStore, listener)
 }
 
 const retainedStatusesByView = new WeakMap<AppStateView, RuntimeStatuses>()

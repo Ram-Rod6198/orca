@@ -3,7 +3,7 @@ import { useAppStore } from '@/store/index'
 import type { AppState } from '@/store/types'
 import {
   readRuntimeStatuses,
-  subscribeRuntimeStatuses
+  subscribeAppStoreWithStatuses
 } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import {
   subscribeStructuredChatTabNames,
@@ -80,30 +80,17 @@ export function dashboardSnapshotInputsChanged(
 /** Keep subscription outside the effect to avoid react-doctor’s cleanup false positive; callers must invoke the returned disposer. */
 export function watchSnapshotInputs(onChanged: () => void): () => void {
   const stopNames = subscribeStructuredChatTabNames(onChanged)
-  // Host profile changes rebuild too; whichever wake sees a new status map first claims it.
-  let seenStatuses = readRuntimeStatuses()
-  const claimStatusChange = (): boolean => {
-    const statuses = readRuntimeStatuses()
-    const changed = statuses !== seenStatuses
-    seenStatuses = statuses
-    return changed
-  }
-  const unsubscribeStore = useAppStore.subscribe((state, previousState) => {
-    // Why: unrelated high-frequency store writes must not rebuild a cross-worktree snapshot.
-    const statusesChanged = claimStatusChange()
-    if (dashboardSnapshotInputsChanged(state, previousState) || statusesChanged) {
-      onChanged()
+  const unsubscribeStore = subscribeAppStoreWithStatuses(
+    (state, previousState, statuses, previousStatuses) => {
+      // Why: unrelated high-frequency store writes must not rebuild a cross-worktree snapshot.
+      if (statuses !== previousStatuses || dashboardSnapshotInputsChanged(state, previousState)) {
+        onChanged()
+      }
     }
-  })
-  const unsubscribeStatuses = subscribeRuntimeStatuses(() => {
-    if (claimStatusChange()) {
-      onChanged()
-    }
-  })
+  )
   return () => {
     stopNames()
     unsubscribeStore()
-    unsubscribeStatuses()
   }
 }
 
