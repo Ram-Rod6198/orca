@@ -319,7 +319,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
       onClick={handleActivate}
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
-      onDragStart={(e) => startChatMoveDrag(e, agent.paneKey)}
+      onDragStart={(e) => startChatMoveDrag(e, agent)}
       data-focused-agent-pane={highlighted ? 'true' : undefined}
       data-current={view?.current ? 'true' : undefined}
       aria-current={view?.current ? 'true' : undefined}

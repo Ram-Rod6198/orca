@@ -255,7 +255,7 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
       onClickCapture={handleSendTargetClickCapture}
       onClick={handleActivate}
       draggable={!agent.childRow && agent.rowSource !== 'subagent'}
-      onDragStart={(e) => startChatMoveDrag(e, agent.paneKey)}
+      onDragStart={(e) => startChatMoveDrag(e, agent)}
       className={cn(
         // Why: named group scopes the X-reveal to this row, not every row in the card.
         'agent-disclosure-row group/agent-row relative -ml-2 flex flex-col py-1',

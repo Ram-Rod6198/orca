@@ -10,6 +10,14 @@ import { waitForActiveWorktree, waitForSessionReady } from '../../desktop/render
 import { createChatOnHost, writeClaudeStub } from '../session-fixtures/structured-claude-stub'
 import { buildFakeAgentCommandOverride } from '../session-fixtures/fake-agent-command-override'
 import { resolveCliCommand } from '../../../../src/shared/shell/command-resolution/node-cli-command-resolution'
+import { randomUUID } from 'node:crypto'
+import '../../terminal/input/terminal'
+import { waitForActivePaneHookDescriptor } from '../../terminal/input/terminal-active-pane'
+import {
+  claudeTranscriptLines,
+  seedClaudeProviderSession
+} from '../session-fixtures/native-chat-transcript-fixture'
+import { encodeClaudeProjectPath } from '../../../../src/main/ai-vault/scanners/claude/claude-project-dir-encoding'
 
 const STUB_SCRIPT = path.join(
   process.cwd(),
@@ -219,4 +227,61 @@ test('clicking a chat link to a .bat file runs it', async ({ orcaPage: page, stu
   await chat.getByRole('link', { name: /run-me\.bat/ }).click()
   await expect.poll(() => existsSync(marker), { timeout: 30_000 }).toBe(true)
   rmSync(dir, { recursive: true, force: true })
+})
+
+test('dropping a CLI agent on another workspace continues it there as a chat', async ({
+  orcaPage: page,
+  electronApp,
+  stub
+}) => {
+  const { from, to } = await chatAndSecondWorkspace(page, stub)
+  // The workspace's terminal reports a Claude CLI conversation, the way a running claude does.
+  await page.locator('[data-testid="sortable-tab"]').filter({ hasText: 'Terminal' }).first().click()
+  const pane = await waitForActivePaneHookDescriptor(page)
+  const home = await electronApp.evaluate(({ app }) => app.getPath('home'))
+  const providerId = randomUUID()
+  const cwd = from.slice(from.indexOf('::') + 2)
+  const bucket = path.join(home, '.claude', 'projects', encodeClaudeProjectPath(cwd))
+  mkdirSync(bucket, { recursive: true })
+  const transcriptPath = path.join(bucket, `${providerId}.jsonl`)
+  writeFileSync(
+    transcriptPath,
+    claudeTranscriptLines({
+      sessionId: providerId,
+      userText: 'old question',
+      assistantText: 'old answer'
+    })
+  )
+  await seedClaudeProviderSession(page, {
+    paneKey: pane.paneKey,
+    worktreeId: pane.worktreeId,
+    sessionId: providerId,
+    transcriptPath
+  })
+  // Two agents collapse into a summary row, as in a real busy workspace; open it first.
+  await card(page, from)
+    .locator('.compact-agent-summary-button[aria-expanded="false"]')
+    .click({ timeout: 10_000 })
+    .catch(() => {})
+  const cliRow = card(page, from).locator('.agent-disclosure-row', { hasText: 'first-flush' })
+  await expect(cliRow).toBeVisible({ timeout: 30_000 })
+  await cliRow.dragTo(card(page, to))
+  const chatsIn = (worktreeId: string) =>
+    page.evaluate(
+      (id) =>
+        (window.__store?.getState().unifiedTabsByWorktree[id] ?? []).filter(
+          (tab) => tab.contentType === 'agent-session'
+        ).length,
+      worktreeId
+    )
+  await expect.poll(() => chatsIn(to), { timeout: 60_000 }).toBe(1)
+  // Claude resumes from the launch folder's bucket, so the conversation now lives there too.
+  const movedTranscript = path.join(
+    home,
+    '.claude',
+    'projects',
+    encodeClaudeProjectPath(to.slice(to.indexOf('::') + 2)),
+    `${providerId}.jsonl`
+  )
+  await expect.poll(() => existsSync(movedTranscript), { timeout: 30_000 }).toBe(true)
 })
