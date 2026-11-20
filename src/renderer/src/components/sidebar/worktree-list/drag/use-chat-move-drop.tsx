@@ -15,7 +15,7 @@ import {
   readChatMoveDragData,
   type ChatMoveDragPayload
 } from '@/lib/agent-session/move/chat-move-drag'
-import { relocateStructuredSession } from '@/lib/agent-session/move/relocate-structured-session'
+import { moveDraggedAgent } from '@/lib/agent-session/move/relocate-structured-session'
 
 const DROP_HIGHLIGHT = ['ring-1', 'ring-ring', 'rounded-sm'] as const
 
@@ -59,12 +59,7 @@ function moveChatTo(chat: ChatMoveDragPayload, worktreeId: string | null): void 
     )
     return
   }
-  void relocateStructuredSession({
-    sessionId: chat.sessionId,
-    fromWorktreeId: chat.fromWorktreeId,
-    toWorktreeId: worktreeId,
-    agent: chat.agent
-  })
+  void moveDraggedAgent(chat, worktreeId)
 }
 
 type ProjectPick = { chat: ChatMoveDragPayload; groupId: string; x: number; y: number }

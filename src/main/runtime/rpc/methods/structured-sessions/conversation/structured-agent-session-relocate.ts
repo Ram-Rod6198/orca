@@ -23,6 +23,7 @@ import {
   retireCapturedStructuredSessionSurface
 } from '../../../../agent-session/lifecycle/structured-agent-session-close'
 import { agentSessionRelocationAllowed } from '../../../../agent-session/records/agent-session-record-relocate'
+import { copyClaudeTranscriptToFolder } from '../../../../agent-session/records/agent-session-claude-transcript-move'
 
 export const STRUCTURED_AGENT_SESSION_RELOCATE_METHODS = [
   defineMethod({
@@ -77,6 +78,16 @@ export const STRUCTURED_AGENT_SESSION_RELOCATE_METHODS = [
         }
       } finally {
         await host.close(sessionId, 'user-close')
+      }
+      const [fromFolder, toFolder] = await Promise.all(
+        [record.location.workspaceId, to.workspaceId].map((id) =>
+          ctx.runtime.resolveStructuredAgentSessionLocalWorkspacePath(`id:${id}`).catch(() => null)
+        )
+      )
+      if (fromFolder && toFolder) {
+        await copyClaudeTranscriptToFolder(record, fromFolder, toFolder).catch((error: unknown) =>
+          console.warn('[agent-session] copying a moved Claude transcript failed', error)
+        )
       }
       const moved = await host.serialize(sessionId, async () =>
         host.hasSession(sessionId)
