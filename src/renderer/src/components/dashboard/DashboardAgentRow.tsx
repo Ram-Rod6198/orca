@@ -48,6 +48,7 @@ import {
 import { translate } from '@/i18n/i18n'
 import { useTranslate, type Translate } from '@/i18n/use-translate'
 import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
+import { startChatMoveDrag } from '@/lib/agent-session/move/chat-move-drag'
 
 function formatTimeAgo(ts: number, now: number, t: Translate = translate): string {
   const delta = now - ts
@@ -253,6 +254,8 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
     <div
       onClickCapture={handleSendTargetClickCapture}
       onClick={handleActivate}
+      draggable={!agent.childRow && agent.rowSource !== 'subagent'}
+      onDragStart={(e) => startChatMoveDrag(e, agent.paneKey)}
       className={cn(
         // Why: named group scopes the X-reveal to this row, not every row in the card.
         'agent-disclosure-row group/agent-row relative -ml-2 flex flex-col py-1',
