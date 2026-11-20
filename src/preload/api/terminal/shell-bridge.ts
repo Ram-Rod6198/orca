@@ -37,6 +37,9 @@ export const shellApi = {
   openFileUri: (uri: string, ownerHostId: ExecutionHostId): Promise<ShellOpenFileResult> =>
     ipcRenderer.invoke('shell:openFileUri', uri, ownerHostId),
 
+  runLinkedProgram: (path: string, ownerHostId: ExecutionHostId): Promise<boolean> =>
+    ipcRenderer.invoke('shell:runLinkedProgram', path, ownerHostId),
+
   pathsExist: (paths: string[]): Promise<ShellPathExistence[]> =>
     ipcRenderer.invoke('shell:pathsExist', paths),
   pathExists: (path: string, options?: { wakeWslDistro?: boolean }): Promise<boolean> =>

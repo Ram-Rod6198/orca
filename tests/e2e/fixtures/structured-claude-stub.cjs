@@ -75,6 +75,8 @@ function startTurn(frame) {
   const prompt = JSON.stringify(frame.message ?? '')
   const slow = prompt.includes('slow')
   const pluginUi = prompt.includes('plugin-ui')
+  // A prompt starting `say ` is answered with the rest of its text, so a spec can choose the reply.
+  const said = /^say ([\s\S]+)/.exec(promptText(frame.message))?.[1]
   if (prompt.includes('plugin-focus')) {
     write({
       type: 'system',
@@ -116,7 +118,7 @@ function startTurn(frame) {
           id: randomUUID(),
           role: 'assistant',
           model: 'claude-fake',
-          content: [{ type: 'text', text: 'Stub reply.' }]
+          content: [{ type: 'text', text: said ?? 'Stub reply.' }]
         }
       })
       write({
@@ -126,7 +128,7 @@ function startTurn(frame) {
         session_id: sessionId,
         is_error: false,
         terminal_reason: 'completed',
-        result: 'Stub reply.'
+        result: said ?? 'Stub reply.'
       })
     },
     slow ? SLOW_TURN_MS : TURN_MS

@@ -26,6 +26,8 @@ export type ShellApi = {
     location?: RuntimeFileOpenPosition
   ) => Promise<boolean>
   openFileUri: (uri: string, ownerHostId: ExecutionHostId) => Promise<ShellOpenFileResult>
+  /** Runs a .bat, .cmd or .exe on this Windows PC; false when the path is not one. */
+  runLinkedProgram?: (path: string, ownerHostId: ExecutionHostId) => Promise<boolean>
   pathsExist?: (paths: string[]) => Promise<ShellPathExistence[]>
   /** `wakeWslDistro`: a click, a user act that may start a stopped WSL distro. */
   pathExists: (path: string, options?: { wakeWslDistro?: boolean }) => Promise<boolean>
