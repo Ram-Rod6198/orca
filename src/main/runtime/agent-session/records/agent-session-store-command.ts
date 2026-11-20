@@ -47,6 +47,10 @@ import {
   type AgentSessionChatForget,
   type AgentSessionIdleForget
 } from './agent-session-record-forget'
+import {
+  relocateIdleAgentSessionRecord,
+  type AgentSessionIdleRelocation
+} from './agent-session-record-relocate'
 import type { AgentSessionStoreState } from './agent-session-store-state'
 
 export type AgentSessionStoreCommand =
@@ -79,6 +83,7 @@ export type AgentSessionStoreCommand =
   | { kind: 'permission-backfill'; fullAccess: ReadonlyMap<string, boolean> }
   | ({ kind: 'forget-idle'; legacyTabIds: readonly string[] } & AgentSessionIdleForget)
   | ({ kind: 'forget-chat'; legacyTabIds: readonly string[] } & AgentSessionChatForget)
+  | ({ kind: 'relocate-idle' } & AgentSessionIdleRelocation)
 
 export type AgentSessionStoreCommandResult<C extends AgentSessionStoreCommand> = C extends {
   kind: 'reserve' | 'found'
@@ -102,7 +107,7 @@ export type AgentSessionStoreCommandResult<C extends AgentSessionStoreCommand> =
                   ? string | null
                   : C extends { kind: 'tabs-background-backfill' }
                     ? string[]
-                    : C extends { kind: 'forget-idle' | 'forget-chat' }
+                    : C extends { kind: 'forget-idle' | 'forget-chat' | 'relocate-idle' }
                       ? boolean
                       : void
 
@@ -175,6 +180,8 @@ export function agentSessionStoreCommandSelection(command: AgentSessionStoreComm
         legacyRecordIds: command.legacyTabIds,
         tabs: true
       }
+    case 'relocate-idle':
+      return { recordIds: [command.sessionId] }
   }
 }
 
@@ -246,6 +253,8 @@ export function applyAgentSessionStoreCommand(
       return forgetIdleAgentSessionRecord(state, command, command.legacyTabIds)
     case 'forget-chat':
       return forgetAgentSessionChat(state, command, command.legacyTabIds)
+    case 'relocate-idle':
+      return relocateIdleAgentSessionRecord(state, command)
     case 'permission-backfill':
       for (const [id, record] of state.records) {
         if (record.permissionMode !== undefined) {
