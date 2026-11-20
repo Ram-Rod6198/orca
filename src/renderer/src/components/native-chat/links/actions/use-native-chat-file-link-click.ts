@@ -9,6 +9,7 @@ import { resolveNativeChatFileLink } from './native-chat-file-link'
 import type { NativeChatFileLinkContext } from './native-chat-file-link-context'
 import { nativeChatPlainLinkClickBehavior } from './native-chat-link-click-behavior'
 import { showFileLinkUnresolvedToast } from './native-chat-file-link-toasts'
+import { opensByRunning } from '@/components/terminal-pane/links/files/runnable-file-path'
 import {
   nativeChatFileLinkActions,
   nativeChatFileOpenDeps
@@ -32,9 +33,11 @@ export function useNativeChatFileLinkClick(
       event.preventDefault()
       event.stopPropagation()
       const state = useAppStore.getState()
-      const behavior = isTerminalLinkActionActivation(event)
+      const plain = isTerminalLinkActionActivation(event)
         ? nativeChatPlainLinkClickBehavior(state.settings)
         : 'open'
+      // A plain click on a script or program runs it rather than offering the actions menu.
+      const behavior = plain === 'actions' && opensByRunning(route.pathText) ? 'open' : plain
       if (behavior === 'none') {
         return
       }

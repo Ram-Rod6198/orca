@@ -1,6 +1,6 @@
 // A chat dragged from its workspace's agent rows onto another workspace moves there with its history.
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { Page } from '@stablyai/playwright-test'
@@ -203,4 +203,20 @@ test('dropping a Session History chat on a workspace moves it there', async ({
     }
   )
   await expectMoved(page, sessionId, from, to)
+})
+
+test('clicking a chat link to a .bat file runs it', async ({ orcaPage: page, stub }) => {
+  test.skip(process.platform !== 'win32', 'running linked programs is Windows-only')
+  await chatAndSecondWorkspace(page, stub)
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'orca-e2e-run-'))
+  const marker = path.join(dir, 'ran.txt')
+  const script = path.join(dir, 'run-me.bat')
+  writeFileSync(script, `@echo ran> "${marker}"\r\n`)
+  const chat = page.locator('[data-native-chat-root="true"]')
+  await chat.getByRole('textbox').click()
+  await page.keyboard.type(`say Run ${script}`)
+  await chat.getByRole('button', { name: 'Send', exact: true }).click()
+  await chat.getByRole('link', { name: /run-me\.bat/ }).click()
+  await expect.poll(() => existsSync(marker), { timeout: 30_000 }).toBe(true)
+  rmSync(dir, { recursive: true, force: true })
 })

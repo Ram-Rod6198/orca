@@ -37,6 +37,7 @@ import {
 } from './shell-owned-path-target'
 import { inspectLinkedFile } from './linked-file-inspection'
 import { registerShellPathExistenceHandlers } from './shell-path-existence-handlers'
+import { registerRunLinkedProgramHandler } from './run-linked-program'
 
 const REPO_ICON_IMAGE_MIME_TYPES: Record<string, string> = {
   '.png': 'image/png'
@@ -207,6 +208,7 @@ export function registerShellHandlers(
   )
 
   registerShellPathExistenceHandlers()
+  registerRunLinkedProgramHandler()
 
   ipcMain.handle(
     'shell:pickDirectory',

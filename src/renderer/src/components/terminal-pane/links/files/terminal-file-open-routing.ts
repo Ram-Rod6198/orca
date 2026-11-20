@@ -42,6 +42,7 @@ import type { HttpLinkDestination } from '@/lib/browser/navigation/http-link-des
 import { isHtmlFilePath, localHtmlFileDestinations } from './local-html-file-destinations'
 import type { FileOpenFailure } from './terminal-file-open-failure'
 import { openDetectedFolder } from './terminal-folder-open'
+import { runLinkedLocalProgram } from './runnable-file-path'
 
 type TerminalFileOpenDeps = {
   worktreeId: string
@@ -205,6 +206,11 @@ export function openDetectedFilePath(
         ? (deps.browserDestination ??
           httpLinkDirectClickDestination(localHtmlFileDestinations(), openWithSystemDefault))
         : null
+    // A script or program on this computer runs; one on another host is never downloaded to run.
+    const runnable = canOpenWithSystemDefault && !explicitGroupRequest && !statResult.isDirectory
+    if (runnable && (await runLinkedLocalProgram(mappedFilePath))) {
+      return
+    }
     const opensWithSystemDefault = pageDestination
       ? pageDestination === 'system'
       : openWithSystemDefault
