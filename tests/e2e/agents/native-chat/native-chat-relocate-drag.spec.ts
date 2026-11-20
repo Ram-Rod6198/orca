@@ -75,7 +75,8 @@ const chatTabOwner = (page: Page, sessionId: string) =>
     return Object.entries(tabs).find(([, rows]) => rows.some((tab) => tab.entityId === id))?.[0]
   }, sessionId)
 
-test('dragging a chat onto another workspace moves it there', async ({ orcaPage: page, stub }) => {
+/** A chat that finished one turn in the main workspace, plus a second workspace of the same project. */
+async function chatAndSecondWorkspace(page: Page, stub: Stub) {
   await waitForSessionReady(page)
   const from = await waitForActiveWorktree(page)
   await page.evaluate(
@@ -111,13 +112,95 @@ test('dragging a chat onto another workspace moves it there', async ({ orcaPage:
   await page.keyboard.type('hello')
   await chat.getByRole('button', { name: 'Send', exact: true }).click()
   await expect(chat.getByText('Stub reply.')).toBeVisible({ timeout: 30_000 })
-
-  const row = card(page, from).locator('.agent-disclosure-row').first()
-  await expect(row).toBeVisible({ timeout: 30_000 })
+  await expect(chatRow(page, from)).toBeVisible({ timeout: 30_000 })
   await expect(card(page, to)).toBeVisible()
-  await row.dragTo(card(page, to))
+  return { from, to, sessionId }
+}
 
+const chatRow = (page: Page, worktreeId: string) =>
+  card(page, worktreeId).locator('.agent-disclosure-row').first()
+
+async function expectMoved(page: Page, sessionId: string, from: string, to: string) {
   await expect.poll(() => chatTabOwner(page, sessionId), { timeout: 30_000 }).toBe(to)
   await expect(card(page, to).locator('.agent-disclosure-row')).toHaveCount(1, { timeout: 30_000 })
   await expect(card(page, from).locator('.agent-disclosure-row')).toHaveCount(0)
+  // Opening the moved chat can raise a new workspace's setup prompt over the sidebar's last rows.
+  await page
+    .getByRole('button', { name: 'Dismiss setup scripts' })
+    .click({ timeout: 5_000 })
+    .catch(() => {})
+}
+
+test('dragging a chat onto another workspace moves it there', async ({ orcaPage: page, stub }) => {
+  const { from, to, sessionId } = await chatAndSecondWorkspace(page, stub)
+  await chatRow(page, from).dragTo(card(page, to))
+  await expectMoved(page, sessionId, from, to)
+})
+
+test("dropping a chat on a project header moves it to the project's main workspace", async ({
+  orcaPage: page,
+  stub
+}) => {
+  const { from, to, sessionId } = await chatAndSecondWorkspace(page, stub)
+  await chatRow(page, from).dragTo(card(page, to))
+  await expectMoved(page, sessionId, from, to)
+  await chatRow(page, to).dragTo(page.locator('[data-chat-drop-project-id]').first())
+  await expectMoved(page, sessionId, to, from)
+})
+
+test('dropping a chat on a group header asks which project, then moves it there', async ({
+  orcaPage: page,
+  stub
+}) => {
+  const { from, to, sessionId } = await chatAndSecondWorkspace(page, stub)
+  await chatRow(page, from).dragTo(card(page, to))
+  await expectMoved(page, sessionId, from, to)
+  const project = await page.evaluate(async (worktreeId) => {
+    const state = window.__store?.getState()
+    const repoId = Object.values(state?.worktreesByRepo ?? {})
+      .flat()
+      .find((row) => row.id === worktreeId)?.repoId
+    const repo = state?.repos.find((row) => row.id === repoId)
+    const group = await state?.createProjectGroup('Games', 'local')
+    if (!state || !repo || !group || !(await state.moveProjectToGroup(repo, group.id))) {
+      throw new Error('could not put the project in a group')
+    }
+    return { name: repo.displayName, groupId: group.id }
+  }, from)
+  const groupHeader = page.locator(`[data-chat-drop-group-id=${JSON.stringify(project.groupId)}]`)
+  await expect(groupHeader).toBeVisible({ timeout: 30_000 })
+  await chatRow(page, to).dragTo(groupHeader)
+  const menu = page.getByRole('menu')
+  await expect(menu.getByText('Move chat to project')).toBeVisible()
+  await menu.getByRole('menuitem', { name: project.name }).click()
+  await expectMoved(page, sessionId, to, from)
+})
+
+test('dropping a Session History chat on a workspace moves it there', async ({
+  orcaPage: page,
+  stub
+}) => {
+  const { from, to, sessionId } = await chatAndSecondWorkspace(page, stub)
+  // The payload Session History rows write when they start a drag.
+  await card(page, to).evaluate(
+    (target, payload) => {
+      const data = new DataTransfer()
+      data.setData('application/x-orca-ai-vault-session', JSON.stringify(payload))
+      for (const type of ['dragenter', 'dragover', 'drop']) {
+        target.dispatchEvent(
+          new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: data })
+        )
+      }
+    },
+    {
+      kind: 'ai-vault-session',
+      version: 1,
+      agent: 'claude',
+      sessionId,
+      structuredSession: { sessionId, workspaceId: from },
+      title: 'hello',
+      command: ''
+    }
+  )
+  await expectMoved(page, sessionId, from, to)
 })
