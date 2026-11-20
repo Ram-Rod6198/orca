@@ -39,6 +39,16 @@ export function applyJournalWriterStoreEffect(
     // Its connector requests are owed an outcome still: the chat no longer has them.
     forgetJournalConnectorReplies(db, input.command.sessionId, Date.now())
   }
+  if (
+    input.kind === 'command' &&
+    input.command.kind === 'relocate-idle' &&
+    resolved.value === true
+  ) {
+    db.prepare('UPDATE journal_chat_state SET workspace_id=? WHERE session_id=?').run(
+      input.command.to.workspaceId,
+      input.command.sessionId
+    )
+  }
   return {
     kind: 'store',
     disposition: resolved.changed ? 'applied' : 'noop',

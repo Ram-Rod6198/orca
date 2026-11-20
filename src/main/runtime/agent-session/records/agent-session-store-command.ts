@@ -45,6 +45,10 @@ import {
   forgetIdleAgentSessionRecord,
   type AgentSessionIdleForget
 } from './agent-session-record-forget'
+import {
+  relocateIdleAgentSessionRecord,
+  type AgentSessionIdleRelocation
+} from './agent-session-record-relocate'
 import type { AgentSessionStoreState } from './agent-session-store-state'
 
 export type AgentSessionStoreCommand =
@@ -76,6 +80,7 @@ export type AgentSessionStoreCommand =
   | { kind: 'tabs-background-backfill'; sessionIds: readonly string[] }
   | { kind: 'permission-backfill'; fullAccess: ReadonlyMap<string, boolean> }
   | ({ kind: 'forget-idle'; legacyTabIds: readonly string[] } & AgentSessionIdleForget)
+  | ({ kind: 'relocate-idle' } & AgentSessionIdleRelocation)
 
 export type AgentSessionStoreCommandResult<C extends AgentSessionStoreCommand> = C extends {
   kind: 'reserve' | 'found'
@@ -99,7 +104,7 @@ export type AgentSessionStoreCommandResult<C extends AgentSessionStoreCommand> =
                   ? string | null
                   : C extends { kind: 'tabs-background-backfill' }
                     ? string[]
-                    : C extends { kind: 'forget-idle' }
+                    : C extends { kind: 'forget-idle' | 'relocate-idle' }
                       ? boolean
                       : void
 
@@ -166,6 +171,8 @@ export function agentSessionStoreCommandSelection(command: AgentSessionStoreComm
       return { recordIds: [], missingPermission: true }
     case 'forget-idle':
       return { recordIds: [command.sessionId], legacyRecordIds: command.legacyTabIds, tabs: true }
+    case 'relocate-idle':
+      return { recordIds: [command.sessionId] }
   }
 }
 
@@ -235,6 +242,8 @@ export function applyAgentSessionStoreCommand(
       return backfillAgentSessionBackground(state, command.sessionIds)
     case 'forget-idle':
       return forgetIdleAgentSessionRecord(state, command, command.legacyTabIds)
+    case 'relocate-idle':
+      return relocateIdleAgentSessionRecord(state, command)
     case 'permission-backfill':
       for (const [id, record] of state.records) {
         if (record.permissionMode !== undefined) {

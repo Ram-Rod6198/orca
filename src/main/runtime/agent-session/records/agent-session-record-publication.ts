@@ -1,10 +1,43 @@
 import type { AgentSessionStoreCommand } from './agent-session-store-command'
 import type { AgentSessionStoreTransactions } from './agent-session-store-transactions'
 import type { AgentSessionRecordCommand } from './agent-session-record-command'
+import type { AgentSessionIdleForget } from './agent-session-record-forget'
+import type { AgentSessionIdleRelocation } from './agent-session-record-relocate'
 
 export abstract class AgentSessionRecordPublication {
   constructor(protected readonly transactions: AgentSessionStoreTransactions) {}
   abstract holdsRecords(): boolean
+  /** Runs in the chat's journal lane after any conversion, so nothing opens the chat meanwhile. */
+  protected abstract settleChatAtRest(
+    sessionId: string,
+    settle: () => Promise<boolean>
+  ): Promise<boolean>
+
+  /** Deletes a chat at rest for good, with its tab, when `stillWanted` agrees after any conversion
+   *  of it. Its journal rows follow in background pages on the next maintenance tick, so a batch
+   *  of deletions shares one pass. The caller holds the chat's conversation lane, so nothing opens
+   *  it meanwhile. */
+  forgetIdleChat = (
+    forget: AgentSessionIdleForget,
+    stillWanted: () => Promise<boolean>
+  ): Promise<boolean> =>
+    this.settleChatAtRest(
+      forget.sessionId,
+      async () =>
+        (await stillWanted()) &&
+        this.commitStoreCommand({
+          kind: 'forget-idle',
+          ...forget,
+          legacyTabIds: this.transactions.legacySessionTabIds
+        })
+    )
+
+  /** Moves a closed chat with its journal head to another workspace on its host; false leaves it.
+   *  The caller holds the chat's conversation lane, so nothing reopens it meanwhile. */
+  relocateIdleChat = (move: AgentSessionIdleRelocation): Promise<boolean> =>
+    this.settleChatAtRest(move.sessionId, () =>
+      this.commitStoreCommand({ kind: 'relocate-idle', ...move })
+    )
 
   /** Notify committed death evidence from every transition; listeners must not throw. */
   onDeathEvidence(listener: (sessionId: string) => void): () => void {

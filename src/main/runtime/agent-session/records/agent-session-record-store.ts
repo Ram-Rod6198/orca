@@ -36,7 +36,6 @@ import {
   type AgentSessionRestartProbeArgs
 } from '../ownership/agent-session-restart-reconciliation'
 import type { AgentSessionRecordCommand } from './agent-session-record-command'
-import type { AgentSessionIdleForget } from './agent-session-record-forget'
 import type {
   AgentSessionReserveRequest,
   AgentSessionReserveResult
@@ -359,22 +358,7 @@ export class AgentSessionRecordStore extends AgentSessionRecordTabs {
   replaceSessionOptions = (args: AgentSessionOptionsReplacement): Promise<AgentSessionRecord> =>
     this.updateRecord(args.sessionId, { kind: 'options', args })
 
-  /** Deletes a chat at rest for good, with its tab, when `stillWanted` agrees after any conversion
-   *  of it. Its journal rows follow in background pages on the next maintenance tick, so a batch
-   *  of deletions shares one pass. The caller holds the chat's conversation lane, so nothing opens
-   *  it meanwhile. */
-  forgetIdleChat = (
-    forget: AgentSessionIdleForget,
-    stillWanted: () => Promise<boolean>
-  ): Promise<boolean> =>
-    this.journalDatabase.forgetChat(
-      forget.sessionId,
-      async () =>
-        (await stillWanted()) &&
-        this.commitStoreCommand({
-          kind: 'forget-idle',
-          ...forget,
-          legacyTabIds: this.transactions.legacySessionTabIds
-        })
-    )
+  protected settleChatAtRest(sessionId: string, settle: () => Promise<boolean>): Promise<boolean> {
+    return this.journalDatabase.settleChatAtRest(sessionId, settle)
+  }
 }

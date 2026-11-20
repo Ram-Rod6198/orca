@@ -209,6 +209,8 @@ export function renderWorktreeSectionHeaderRow(
                 )
               : undefined
           }
+          data-chat-drop-project-id={isRepoHeader ? row.repo?.id : undefined}
+          data-chat-drop-group-id={projectGroupIdForHeader}
           data-repo-header-id={projectIdForHeader}
           data-repo-header-index={repoHeaderIndex}
           data-repo-header-bucket={repoHeaderBucketKey}

@@ -32,6 +32,7 @@ import { STRUCTURED_AGENT_SESSION_PROMPT_RESPONSE_METHODS } from './conversation
 import { STRUCTURED_AGENT_SESSION_REVEAL_METHODS } from './conversation/structured-agent-session-reveal'
 import { STRUCTURED_AGENT_SESSION_REGENERATE_NAME_METHODS } from './conversation/structured-agent-session-regenerate-name'
 import { STRUCTURED_AGENT_SESSION_RENAME_METHODS } from './conversation/structured-agent-session-rename'
+import { STRUCTURED_AGENT_SESSION_RELOCATE_METHODS } from './conversation/structured-agent-session-relocate'
 import { STRUCTURED_AGENT_SESSION_QUEUED_METHODS } from './conversation/structured-agent-session-queued-methods'
 import { STRUCTURED_AGENT_SESSION_RESTART_RESUME_METHODS } from './conversation/structured-agent-session-restart-resume'
 import { STRUCTURED_AGENT_SESSION_STATUS_METHODS } from './subscriptions/structured-agent-session-status-stream'
@@ -210,6 +211,7 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
   ...STRUCTURED_AGENT_SESSION_REVEAL_METHODS,
   ...STRUCTURED_AGENT_SESSION_REGENERATE_NAME_METHODS,
   ...STRUCTURED_AGENT_SESSION_RENAME_METHODS,
+  ...STRUCTURED_AGENT_SESSION_RELOCATE_METHODS,
   ...STRUCTURED_AGENT_SESSION_RESTART_RESUME_METHODS,
   ...STRUCTURED_AGENT_SESSION_USAGE_LIMIT_CONTINUE_METHODS,
   ...STRUCTURED_AGENT_SESSION_SKIP_ASYNC_QUESTIONS_METHODS,

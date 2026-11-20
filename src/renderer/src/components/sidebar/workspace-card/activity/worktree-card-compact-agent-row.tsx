@@ -27,6 +27,7 @@ import { getCompactAgentLineOrder } from './worktree-card-compact-agent-line-ord
 import type { ProgramStatusPresentation } from '../../../../../../shared/program-status/presentation'
 import { resolveRowProgramStatus } from '@/lib/program-status/agent-row-presentation'
 import { useTranslate, type Translate } from '@/i18n/use-translate'
+import { startChatMoveDrag } from '@/lib/agent-session/move/chat-move-drag'
 
 function getCompactAgentPrimary(
   agent: DashboardAgentRowData,
@@ -302,7 +303,8 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
 
   return (
     <div
-      draggable={false}
+      // Chats drag onto another workspace to move there; other rows cancel the drag as it starts.
+      draggable={!agent.childRow && agent.rowSource !== 'subagent'}
       className={cn(
         'compact-agent-row agent-disclosure-row group/compact-agent-row min-w-0 cursor-pointer rounded-sm px-1 text-[11px] leading-none',
         'text-muted-foreground worktree-agent-row-hover',
@@ -317,7 +319,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
       onClick={handleActivate}
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
-      onDragStart={(e) => e.stopPropagation()}
+      onDragStart={(e) => startChatMoveDrag(e, agent.paneKey)}
       data-focused-agent-pane={highlighted ? 'true' : undefined}
       data-current={view?.current ? 'true' : undefined}
       aria-current={view?.current ? 'true' : undefined}

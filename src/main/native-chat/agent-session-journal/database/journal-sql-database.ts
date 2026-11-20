@@ -278,10 +278,10 @@ export class JournalSqlDatabase {
     })
   }
 
-  /** In the chat's lane after any conversion. Its epoch stays remembered as ready, so a conversion
-   *  page listed before the deletion returns it instead of importing the original again. */
-  forgetChat(sessionId: string, forget: () => Promise<boolean>): Promise<boolean> {
-    return this.serialize(sessionId, () => this.conversions.ensure(sessionId).then(forget))
+  /** Deletes or moves a chat at rest, in its lane after any conversion. Its epoch stays remembered as
+   *  ready, so a conversion page listed before a deletion returns it instead of importing it again. */
+  settleChatAtRest(sessionId: string, settle: () => Promise<boolean>): Promise<boolean> {
+    return this.serialize(sessionId, () => this.conversions.ensure(sessionId).then(settle))
   }
 
   write(command: JournalWriterCommand): Promise<JournalWriterCommit> {
