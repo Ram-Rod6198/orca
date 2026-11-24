@@ -7,7 +7,12 @@ import type { Page } from '@stablyai/playwright-test'
 import { expect } from '@stablyai/playwright-test'
 import { test as base } from '../../desktop/electron-fixtures/orca-app'
 import { waitForActiveWorktree, waitForSessionReady } from '../../desktop/renderer-probes/store'
-import { createChatOnHost, writeClaudeStub } from '../session-fixtures/structured-claude-stub'
+import { chmodSync } from 'node:fs'
+import { createOrcaSessionId } from '../../../../src/shared/agent-session/identity/orca-session-address'
+import {
+  createStructuredAgentSessionOperationId,
+  structuredAgentSessionCreateFingerprint
+} from '../../../../src/shared/agent-session/lifecycle/operations/structured-agent-session-mutation'
 import { buildFakeAgentCommandOverride } from '../session-fixtures/fake-agent-command-override'
 import { resolveCliCommand } from '../../../../src/shared/shell/command-resolution/node-cli-command-resolution'
 import { randomUUID } from 'node:crypto'
@@ -26,6 +31,53 @@ const STUB_SCRIPT = path.join(
   'fixtures',
   'structured-claude-stub.cjs'
 )
+
+/** The POSIX stub `claude`: a shell wrapper around the Node stub. */
+function writeClaudeStub(dir: string): { command: string } | null {
+  const command = path.join(dir, 'claude')
+  const emptyHome = path.join(dir, 'empty-home')
+  mkdirSync(emptyHome)
+  // A real claude reachable from the test PATH or a fallback install dir would spend real usage.
+  if (
+    path.isAbsolute(resolveCliCommand('claude', { pathEnv: '/usr/bin:/bin', homePath: emptyHome }))
+  ) {
+    return null
+  }
+  const quote = (value: string): string => `'${value.replaceAll("'", `'\\''`)}'`
+  writeFileSync(
+    command,
+    `#!/bin/sh
+exec ${quote(process.execPath)} ${quote(STUB_SCRIPT)} ${quote(path.join(dir, 'launches.jsonl'))} "$@"
+`
+  )
+  chmodSync(command, 0o755)
+  return { command }
+}
+
+/** Creates a chat the way the CLI or a paired phone does: on the host, not in the window. */
+async function createChatOnHost(page: Page, worktreeId: string): Promise<string> {
+  const sessionId = createOrcaSessionId(randomUUID)
+  const worktree = `id:${worktreeId}`
+  const reply = await page.evaluate(
+    (params) => window.api.runtime.call({ method: 'agentSession.create', params }),
+    {
+      envelope: {
+        sessionId,
+        clientOperationId: createStructuredAgentSessionOperationId(randomUUID),
+        expectedRuntimeFence: null,
+        payloadFingerprint: structuredAgentSessionCreateFingerprint({
+          sessionId,
+          worktree,
+          agent: 'claude'
+        })
+      },
+      worktree,
+      agent: 'claude'
+    }
+  )
+  expect(reply, JSON.stringify(reply)).toMatchObject({ ok: true })
+  return sessionId
+}
 const WINDOWS_DIRS = [
   path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32'),
   process.env.SystemRoot ?? 'C:\\Windows',
