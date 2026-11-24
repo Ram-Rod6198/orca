@@ -3,6 +3,7 @@
 import type { JournalSqlDatabase } from '../../../native-chat/agent-session-journal/database/journal-sql-database'
 import { DeletedChats, type DeletedChat } from '../../../native-chat/chat-deletion/deleted-chats'
 import type { AgentSessionChatForget, AgentSessionIdleForget } from './agent-session-record-forget'
+import type { AgentSessionIdleRelocation } from './agent-session-record-relocate'
 import type { AgentSessionStoreTransactions } from './agent-session-store-transactions'
 import { AgentSessionRecordTabs } from './agent-session-tab-table'
 
@@ -53,6 +54,13 @@ export abstract class AgentSessionRecordForgets extends AgentSessionRecordTabs {
           ...forget,
           legacyTabIds: this.transactions.legacySessionTabIds
         })
+    )
+
+  /** Moves a closed chat with its journal head to another workspace on its host; false leaves it.
+   *  The journal lane is the same one a forget holds, so nothing reopens the chat meanwhile. */
+  relocateIdleChat = (move: AgentSessionIdleRelocation): Promise<boolean> =>
+    this.journalDatabase.forgetChat(move.sessionId, () =>
+      this.commitStoreCommand({ kind: 'relocate-idle', ...move })
     )
 
   /** Deletes every session of a chat for good with their tabs and its tombstone, in one commit, or

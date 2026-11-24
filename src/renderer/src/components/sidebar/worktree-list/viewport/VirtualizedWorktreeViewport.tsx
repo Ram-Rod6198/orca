@@ -28,6 +28,7 @@ import { useWorktreeViewportKeyboardNavigation } from './use-keyboard-navigation
 import { useWorktreeRowGeometry } from './use-row-geometry'
 import { useWorktreeListVirtualizer } from './use-virtualizer'
 import { useWorktreeNativeDrag } from '../drag/use-native-drag'
+import { useChatMoveDrop } from '../drag/use-chat-move-drop'
 import { useWorktreePointerDrag } from '../drag/use-pointer-drag'
 import { useWorktreeSidebarHeaderDrag } from '../drag/use-header-drag'
 import { useWorktreeSidebarScrollSuppression } from './use-scroll-suppression'
@@ -273,6 +274,7 @@ export const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktr
     scrollRef,
     markScrollMovement: scrollSuppression.cancelRevealScroll
   })
+  const chatMoveDrop = useChatMoveDrop(nativeDrag)
   useWorktreeDocumentDrop({
     ctx: dropCtx,
     worktreeDragSessionRef: session.worktreeDragSessionRef
@@ -396,8 +398,7 @@ export const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktr
         onPointerDown={handleScrollPointerDown}
         onTouchMove={markDirectScrollInput}
         onWheel={markDirectScrollInput}
-        onDragOver={nativeDrag.handleWorktreeDragOver}
-        onDrop={nativeDrag.handleWorktreeDrop}
+        {...chatMoveDrop.dropHandlers}
         className="worktree-sidebar-scrollbar h-full overflow-y-auto overflow-x-hidden pl-1 scrollbar-sleek outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset pt-px"
         style={WORKTREE_SIDEBAR_SCROLL_STYLE}
       >
@@ -418,6 +419,7 @@ export const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktr
         </div>
       </div>
       {showScrollToTop ? <WorktreeListScrollToTopButton onClick={scrollToTop} /> : null}
+      {chatMoveDrop.projectMenu}
     </div>
   )
 })

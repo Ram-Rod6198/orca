@@ -192,9 +192,14 @@ export function resolveJournalWriterStoreMutation(
           (sessionId) =>
             journalForkStageHeld(db, sessionId) || journalForkAttachmentHeld(db, sessionId)
         )))
+  // Recent use is fine for a move; held, pending or queued input is not.
+  const relocateRefused =
+    mutation.kind === 'command' &&
+    mutation.command.kind === 'relocate-idle' &&
+    journalChatBusy(db, mutation.command.sessionId, Number.POSITIVE_INFINITY)
   let value = sleepingWithPendingInput
     ? null
-    : forgetRefused
+    : forgetRefused || relocateRefused
       ? false
       : applyAgentSessionStoreMutation(draft, mutation, at, {
           planMode,

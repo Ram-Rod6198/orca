@@ -67,6 +67,11 @@ export abstract class StructuredSessionWorkspaceScope extends OrcaRuntimeWithStr
     return (await this.openAgentSessionRecordStore()).listWorkspaceSessions(location)
   }
 
+  /** Where a chat moved into this workspace runs: the location a new chat there would get. */
+  resolveStructuredAgentSessionWorkspaceLocation(worktreeId: string) {
+    return this.resolveStructuredAgentSessionLocation(`id:${worktreeId}`)
+  }
+
   protected async resolveStructuredAgentSessionLocation(worktreeSelector: string) {
     const target = await this.resolveRuntimeFileTarget(worktreeSelector)
     return this.structuredAgentSessionLocationForTarget(target)

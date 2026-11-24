@@ -3160,6 +3160,14 @@
         "mergeRequest": "Merge request",
         "linkedIssue": "Linked issue",
         "listeningPort": "Listening port"
+      },
+      "chatMoveDrag": {
+        "cannotMove": "This agent can't move: Orca can't continue its conversation as a chat."
+      },
+      "relocateStructuredSession": {
+        "otherHost": "A chat can only move to a workspace on the same machine.",
+        "failed": "Orca couldn't move this chat. Try again in a moment.",
+        "busy": "This chat has messages waiting to send, so it stayed where it was."
       }
     },
     "hooks": {
@@ -8661,6 +8669,12 @@
           "browseFolder": "Browse folder…",
           "cloneFromUrl": "Clone from URL…",
           "createNewProject": "Create new project…"
+        },
+        "chatMoveDrop": {
+          "noWorkspace": "That project has no workspace to move the chat into yet.",
+          "notChat": "Only chat conversations from Session History can be moved here.",
+          "pickProject": "Move chat to project",
+          "emptyGroup": "This group has no projects"
         }
       },
       "shared": {

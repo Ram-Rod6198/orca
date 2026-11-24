@@ -53,6 +53,16 @@ export function applyJournalWriterStoreEffect(
     const { chatId, sessionIds, conversations } = input.command
     writeDeletedChat(db, { chatId, sessionIds: [...sessionIds], conversations: [...conversations] })
   }
+  if (
+    input.kind === 'command' &&
+    input.command.kind === 'relocate-idle' &&
+    resolved.value === true
+  ) {
+    db.prepare('UPDATE journal_chat_state SET workspace_id=? WHERE session_id=?').run(
+      input.command.to.workspaceId,
+      input.command.sessionId
+    )
+  }
   return {
     kind: 'store',
     disposition: resolved.changed ? 'applied' : 'noop',
