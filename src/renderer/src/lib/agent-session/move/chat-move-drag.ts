@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { getStructuredAgentSessionTabsByPaneKey } from '@/components/native-chat/session/status/structured-agent-session-tabs'
 import { resolveCliChatResumeSource } from '@/components/tab-bar/session-actions/cli-chat-resume-source'
+import { readRuntimeStatuses } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import { useAppStore } from '@/store/index'
 import type { AiVaultSessionTitle } from '../../../../../shared/ai-vault/contracts/ai-vault-session-title'
 import type { TitledTerminalAgent } from './continue-terminal-as-chat'
@@ -31,7 +32,10 @@ export function startChatMoveDrag(
   const tab = getStructuredAgentSessionTabsByPaneKey(state.unifiedTabsByWorktree).get(agent.paneKey)
   const cli = tab
     ? null
-    : resolveCliChatResumeSource(state, { tab: agent.tab, paneKey: agent.paneKey })
+    : resolveCliChatResumeSource(state, readRuntimeStatuses(), {
+        tab: agent.tab,
+        paneKey: agent.paneKey
+      })
   let payload: ChatMoveDragPayload
   if (tab) {
     payload = {

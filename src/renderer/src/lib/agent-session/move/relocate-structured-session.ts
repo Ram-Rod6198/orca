@@ -6,6 +6,7 @@ import { runtimeTargetForOwnerEnvironment } from '@/runtime/rpc/targets/runtime-
 import { runtimeEnvironmentIdOrLocalUnlessTwin } from '../../workspace/ownership/worktree-runtime-owner'
 import { activateAiVaultStructuredSession } from '../open/activate-ai-vault-structured-session'
 import { resolveCliChatResumeSource } from '@/components/tab-bar/session-actions/cli-chat-resume-source'
+import { readRuntimeStatuses } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import { runCliChatResume } from '@/components/tab-bar/session-actions/cli-chat-resume-run'
 import type { ChatMoveDragPayload } from './chat-move-drag'
 import { continueTitledTerminalAsChat } from './continue-terminal-as-chat'
@@ -61,7 +62,7 @@ export async function moveDraggedAgent(
   if (!sameMachineOwner(agent.fromWorktreeId, toWorktreeId)) {
     return
   }
-  const source = resolveCliChatResumeSource(useAppStore.getState(), {
+  const source = resolveCliChatResumeSource(useAppStore.getState(), readRuntimeStatuses(), {
     tab: { id: agent.tabId, worktreeId: agent.fromWorktreeId },
     paneKey: agent.paneKey
   })
