@@ -2,15 +2,16 @@
 # rebuilt and reinstalled. Run once with -Install from the repo; Orca's Help menu runs it after that.
 param([switch]$Install)
 
-$ErrorActionPreference = 'Stop'
+# Programs are judged by exit code: Windows PowerShell treats their progress text on stderr as errors.
+$ErrorActionPreference = 'Continue'
 $state = Join-Path $env:LOCALAPPDATA 'orca-custom-build'
-New-Item -ItemType Directory -Force $state | Out-Null
+New-Item -ItemType Directory -Force $state -ErrorAction Stop | Out-Null
 
 function Copy-Updater([string]$repo) {
   $source = Join-Path $repo 'scripts\custom-build'
-  Copy-Item (Join-Path $source 'update-my-orca.ps1') $state -Force
-  Copy-Item (Join-Path $source 'cl-shim.c') $state -Force
-  Set-Content (Join-Path $state 'repo.txt') $repo
+  Copy-Item (Join-Path $source 'update-my-orca.ps1') $state -Force -ErrorAction Stop
+  Copy-Item (Join-Path $source 'cl-shim.c') $state -Force -ErrorAction Stop
+  Set-Content (Join-Path $state 'repo.txt') $repo -ErrorAction Stop
 }
 
 if ($Install) {
@@ -19,7 +20,7 @@ if ($Install) {
   $baseFile = Join-Path $repo '.git\orca-custom-base'
   if (-not (Test-Path $baseFile)) {
     # The upstream commit your branch started from (a shallow clone's root); updates move it forward.
-    $base = & git -C $repo merge-base HEAD upstream/main 2>$null
+    $base = & git -C $repo merge-base HEAD upstream/main
     if (-not $base) { $base = (& git -C $repo rev-list --max-parents=0 HEAD | Select-Object -First 1) }
     Set-Content $baseFile $base
   }
@@ -32,11 +33,11 @@ function Check([string]$what) { if ($LASTEXITCODE) { throw "$what failed (exit $
 
 Start-Transcript -Path (Join-Path $state 'update.log') -Force | Out-Null
 try {
-  $repo = (Get-Content (Join-Path $state 'repo.txt') -Raw).Trim()
-  Set-Location $repo
+  $repo = (Get-Content (Join-Path $state 'repo.txt') -Raw -ErrorAction Stop).Trim()
+  Set-Location $repo -ErrorAction Stop
   $branch = (& git rev-parse --abbrev-ref HEAD).Trim()
   $baseFile = Join-Path $repo '.git\orca-custom-base'
-  $base = (Get-Content $baseFile -Raw).Trim()
+  $base = (Get-Content $baseFile -Raw -ErrorAction Stop).Trim()
 
   Step 'Checking the Orca folder'
   if (& git status --porcelain) { throw 'The Orca folder has unsaved changes. Commit or stash them, then update again.' }
@@ -59,7 +60,7 @@ try {
     & git branch -f $branch HEAD; Check 'Saving'
     & git checkout $branch; Check 'Saving'
     & git branch -D orca-update-candidate | Out-Null
-    Set-Content $baseFile $upstream
+    Set-Content $baseFile $upstream -ErrorAction Stop
     # Back up to your fork; a failure here does not stop the update.
     & git push --force-with-lease origin $branch
   }
