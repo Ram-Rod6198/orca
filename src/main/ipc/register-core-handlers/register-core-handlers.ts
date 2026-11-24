@@ -56,6 +56,7 @@ import { registerAutomationHandlers } from '../automations'
 import { registerKeybindingHandlers } from '../keybindings'
 import { registerTelemetryHandlers } from '../telemetry'
 import { registerShellHandlers } from '../shell/shell'
+import { registerCustomBuildUpdateHandlers } from '../custom-build/custom-build-update'
 import { registerPetHandlers } from '../pets/pet'
 import { registerPluginHandlers } from '../plugins/plugins'
 import { registerUIHandlers, setTrustedUIRendererWebContentsId } from '../ui'
@@ -209,6 +210,7 @@ export async function registerCoreHandlers(
     registerBrowserHandlers(store)
     registerBrowserServerDownloadCopyHandlers()
     registerShellHandlers(store)
+    registerCustomBuildUpdateHandlers()
     registerPetHandlers()
     registerSessionHandlers(store, runtime)
     registerUIHandlers(store, { isDashboardPopoutRenderer })

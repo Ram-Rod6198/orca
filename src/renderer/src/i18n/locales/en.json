@@ -3165,6 +3165,9 @@
         "otherHost": "A chat can only move to a workspace on the same machine.",
         "failed": "Orca couldn't move this chat. Try again in a moment.",
         "busy": "This chat has messages waiting to send, so it stayed where it was."
+      },
+      "chatMoveDrag": {
+        "cannotMove": "This agent can't move: Orca can't continue its conversation as a chat."
       }
     },
     "hooks": {
@@ -8672,6 +8675,10 @@
           "notChat": "Only chats can move between workspaces; terminal agents stay in their folder.",
           "pickProject": "Move chat to project",
           "emptyGroup": "This group has no projects"
+        },
+        "CustomBuildUpdateMenuItem": {
+          "started": "Updating in its own window. Orca closes and reopens when the new build is ready.",
+          "label": "Update Your Build"
         }
       },
       "shared": {

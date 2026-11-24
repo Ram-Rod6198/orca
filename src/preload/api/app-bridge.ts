@@ -57,6 +57,9 @@ export const appApi = {
     ),
   quit: (): Promise<void> => ipcRenderer.invoke('app:quit'),
   reload: (): Promise<void> => invokeRendererRequestedReload(),
+  customBuildUpdateAvailable: (): Promise<boolean> =>
+    ipcRenderer.invoke('app:customBuildUpdateAvailable'),
+  startCustomBuildUpdate: (): Promise<boolean> => ipcRenderer.invoke('app:startCustomBuildUpdate'),
   stageBeforeUnloadSync: (args: Parameters<PreloadApi['app']['stageBeforeUnloadSync']>[0]) => {
     const result: { ok?: unknown; error?: unknown } | null | undefined = ipcRenderer.sendSync(
       'app:stage-before-unload-sync',

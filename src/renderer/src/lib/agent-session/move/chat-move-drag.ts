@@ -3,6 +3,8 @@ import { translate } from '@/i18n/i18n'
 import { getStructuredAgentSessionTabsByPaneKey } from '@/components/native-chat/session/status/structured-agent-session-tabs'
 import { resolveCliChatResumeSource } from '@/components/tab-bar/session-actions/cli-chat-resume-source'
 import { useAppStore } from '@/store/index'
+import type { AiVaultSessionTitle } from '../../../../../shared/ai-vault/contracts/ai-vault-session-title'
+import type { TitledTerminalAgent } from './continue-terminal-as-chat'
 import {
   hasAiVaultSessionDragData,
   readAiVaultSessionDragData
@@ -14,11 +16,15 @@ export const CHAT_MOVE_DRAG_TYPE = 'application/x-orca-chat-move'
 export type ChatMoveDragPayload =
   | { kind?: 'chat'; sessionId: string; fromWorktreeId: string; agent?: string }
   | { kind: 'cli'; tabId: string; paneKey: string; fromWorktreeId: string }
+  | ({ kind: 'titled-terminal' } & TitledTerminalAgent)
 
 /** Starts a move drag for a sidebar agent row; a terminal that cannot continue as a chat cancels it. */
 export function startChatMoveDrag(
   event: React.DragEvent,
-  agent: { paneKey: string; tab: { id: string; worktreeId: string } }
+  agent: {
+    paneKey: string
+    tab: { id: string; worktreeId: string; aiVaultTitle?: AiVaultSessionTitle | null }
+  }
 ): void {
   event.stopPropagation()
   const state = useAppStore.getState()
@@ -39,6 +45,17 @@ export function startChatMoveDrag(
       tabId: cli.tabId,
       paneKey: cli.paneKey,
       fromWorktreeId: cli.workspaceId
+    }
+  } else if (agent.tab.aiVaultTitle) {
+    // Its agent has not reported since Orca started, but the tab's title names its conversation.
+    payload = {
+      kind: 'titled-terminal',
+      tabId: agent.tab.id,
+      fromWorktreeId: agent.tab.worktreeId,
+      conversation: {
+        agent: agent.tab.aiVaultTitle.agent,
+        sessionId: agent.tab.aiVaultTitle.sessionId
+      }
     }
   } else {
     event.preventDefault()
@@ -75,6 +92,19 @@ function readOwnPayload(raw: string): ChatMoveDragPayload | null {
   const value = parsed as Record<string, unknown>
   if (typeof value.fromWorktreeId !== 'string') {
     return null
+  }
+  if (value.kind === 'titled-terminal') {
+    const conversation = value.conversation as Record<string, unknown> | undefined
+    return typeof value.tabId === 'string' &&
+      (conversation?.agent === 'codex' || conversation?.agent === 'claude') &&
+      typeof conversation.sessionId === 'string'
+      ? {
+          kind: 'titled-terminal',
+          tabId: value.tabId,
+          fromWorktreeId: value.fromWorktreeId,
+          conversation: { agent: conversation.agent, sessionId: conversation.sessionId }
+        }
+      : null
   }
   if (value.kind === 'cli') {
     return typeof value.tabId === 'string' && typeof value.paneKey === 'string'

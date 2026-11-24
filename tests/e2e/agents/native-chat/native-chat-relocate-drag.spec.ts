@@ -285,3 +285,69 @@ test('dropping a CLI agent on another workspace continues it there as a chat', a
   )
   await expect.poll(() => existsSync(movedTranscript), { timeout: 30_000 }).toBe(true)
 })
+
+test('dropping a terminal agent known only by its tab title continues it there as a chat', async ({
+  orcaPage: page,
+  electronApp,
+  stub
+}) => {
+  const { from, to } = await chatAndSecondWorkspace(page, stub)
+  await page.locator('[data-testid="sortable-tab"]').filter({ hasText: 'Terminal' }).first().click()
+  const pane = await waitForActivePaneHookDescriptor(page)
+  const home = await electronApp.evaluate(({ app }) => app.getPath('home'))
+  const providerId = randomUUID()
+  const bucket = path.join(
+    home,
+    '.claude',
+    'projects',
+    encodeClaudeProjectPath(from.slice(from.indexOf('::') + 2))
+  )
+  mkdirSync(bucket, { recursive: true })
+  writeFileSync(
+    path.join(bucket, `${providerId}.jsonl`),
+    claudeTranscriptLines({
+      sessionId: providerId,
+      userText: 'old question',
+      assistantText: 'old answer'
+    })
+  )
+  // After a restart the agent has not reported its conversation; only the tab's title names it.
+  await page.evaluate(
+    ({ paneKey, worktreeId, providerId }) => {
+      const state = window.__store?.getState()
+      state?.setAgentStatus(
+        paneKey,
+        { state: 'done', prompt: 'titled terminal probe', agentType: 'claude' },
+        'Claude',
+        undefined,
+        { worktreeId }
+      )
+      state?.setAiVaultTabTitle(paneKey.split(':')[0]!, {
+        agent: 'claude',
+        sessionId: providerId,
+        title: 'Old conversation'
+      })
+    },
+    { paneKey: pane.paneKey, worktreeId: pane.worktreeId, providerId }
+  )
+  await card(page, from)
+    .locator('.compact-agent-summary-button[aria-expanded="false"]')
+    .click({ timeout: 10_000 })
+    .catch(() => {})
+  const row = card(page, from).locator('.agent-disclosure-row', { hasText: 'titled terminal' })
+  await expect(row).toBeVisible({ timeout: 30_000 })
+  await row.dragTo(card(page, to))
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          (id) =>
+            (window.__store?.getState().unifiedTabsByWorktree[id] ?? []).filter(
+              (tab) => tab.contentType === 'agent-session'
+            ).length,
+          to
+        ),
+      { timeout: 60_000 }
+    )
+    .toBe(1)
+})

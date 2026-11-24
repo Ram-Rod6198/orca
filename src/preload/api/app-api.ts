@@ -42,6 +42,10 @@ export type AppApi = {
   quit: () => Promise<void>
   /** Main classifies teardown before Electron emits process-gone events. */
   reload: () => Promise<void>
+  /** A self-built Orca with its updater installed; absent on other hosts. */
+  customBuildUpdateAvailable?: () => Promise<boolean>
+  /** Opens the self-built updater in its own window; false when none is installed. */
+  startCustomBuildUpdate?: () => Promise<boolean>
   stageBeforeUnloadSync: (args: {
     sessions: { state: WorkspaceSessionState; hostId?: ExecutionHostId }[]
     ui: Partial<PersistedUIState>

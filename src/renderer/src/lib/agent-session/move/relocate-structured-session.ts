@@ -8,9 +8,12 @@ import { activateAiVaultStructuredSession } from '../open/activate-ai-vault-stru
 import { resolveCliChatResumeSource } from '@/components/tab-bar/session-actions/cli-chat-resume-source'
 import { runCliChatResume } from '@/components/tab-bar/session-actions/cli-chat-resume-run'
 import type { ChatMoveDragPayload } from './chat-move-drag'
+import { continueTitledTerminalAsChat } from './continue-terminal-as-chat'
 
 // Closing, moving and reopening a chat waits on its agent's exit, which can take a few seconds.
 const RELOCATE_TIMEOUT_MS = 30_000
+// A chat continued from a CLI is still starting its agent when the move first asks.
+const CONVERTED_CHAT_SETTLE_MS = 20_000
 
 type AgentSessionRelocateReply =
   | { ok: true; moved: boolean; workspaceId: string }
@@ -37,6 +40,21 @@ export async function moveDraggedAgent(
   agent: ChatMoveDragPayload,
   toWorktreeId: string
 ): Promise<void> {
+  if (agent.kind === 'titled-terminal') {
+    if (!sameMachineOwner(agent.fromWorktreeId, toWorktreeId)) {
+      return
+    }
+    const chat = await continueTitledTerminalAsChat(agent)
+    if (chat) {
+      await relocateStructuredSession({
+        sessionId: chat,
+        fromWorktreeId: agent.fromWorktreeId,
+        toWorktreeId,
+        settleMs: CONVERTED_CHAT_SETTLE_MS
+      })
+    }
+    return
+  }
   if (agent.kind !== 'cli') {
     return relocateStructuredSession({ ...agent, toWorktreeId })
   }
@@ -64,7 +82,8 @@ export async function moveDraggedAgent(
     await relocateStructuredSession({
       sessionId: chat,
       fromWorktreeId: agent.fromWorktreeId,
-      toWorktreeId
+      toWorktreeId,
+      settleMs: CONVERTED_CHAT_SETTLE_MS
     })
   }
 }
@@ -81,6 +100,8 @@ export async function relocateStructuredSession(move: {
   fromWorktreeId: string
   toWorktreeId: string
   agent?: string
+  /** A chat that just started is still opening; keep asking while it settles. */
+  settleMs?: number
 }): Promise<void> {
   if (move.fromWorktreeId === move.toWorktreeId) {
     return
@@ -90,14 +111,21 @@ export async function relocateStructuredSession(move: {
     return
   }
   const { owner } = machine
+  const until = Date.now() + (move.settleMs ?? 0)
   let reply: AgentSessionRelocateReply
   try {
-    reply = await callRuntimeRpc<AgentSessionRelocateReply>(
-      runtimeTargetForOwnerEnvironment(owner),
-      'agentSession.relocate',
-      { sessionId: move.sessionId, workspaceId: move.toWorktreeId },
-      { timeoutMs: RELOCATE_TIMEOUT_MS }
-    )
+    for (;;) {
+      reply = await callRuntimeRpc<AgentSessionRelocateReply>(
+        runtimeTargetForOwnerEnvironment(owner),
+        'agentSession.relocate',
+        { sessionId: move.sessionId, workspaceId: move.toWorktreeId },
+        { timeoutMs: RELOCATE_TIMEOUT_MS }
+      )
+      if ((reply.ok && reply.moved) || Date.now() >= until) {
+        break
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1_000))
+    }
   } catch {
     toast.error(
       translate(

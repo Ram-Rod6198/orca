@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import logo from '../../../../../../resources/logo.svg'
 import { useAppStore } from '@/store/index'
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import { CustomBuildUpdateMenuItem } from './CustomBuildUpdateMenuItem'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { showOnboardingFromRenderer } from '../../onboarding/show-onboarding-event'
 import { SetupGuideProgressRing } from '../../setup-guide/SetupGuideProgressRing'
@@ -241,6 +242,7 @@ export function useHelpMenuController(milestones: SetupMilestones | null): HelpM
           )}
           {t('auto.components.sidebar.SidebarSettingsHelpMenu.29c56f30ee', 'Check for Updates')}
         </DropdownMenuItem>
+        <CustomBuildUpdateMenuItem />
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={handleRestartOrca} disabled={isRestartingOrca}>
           <RotateCw className="size-3.5" />
